@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo Application</title>
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-8">
+  <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+    <!-- Header -->
+    <h1 class="text-2xl font-bold text-center text-blue-600 mb-6">To-Do List</h1>
+    
+    <!-- Input Section -->
+    <div class="flex mb-4">
+      <input type="text" id="task-input" 
+        class="flex-1 px-4 py-2 text-gray-700 bg-gray-50 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Add a new task...">
+      <button id="add-button" 
+        class="px-4 py-2 text-white bg-blue-600 rounded-r-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        Add
+      </button>
+    </div>
+    
+    <!-- To-Do List -->
+    <ul id="todo-list" class="space-y-2">
+      <!-- To-do items will be added here dynamically -->
+    </ul>
+    
+    <!-- Empty State Message -->
+    <p id="empty-list" class="text-center text-gray-500 my-4">No tasks found.</p>
+    
+    <!-- Task Counter -->
+    <p id="todo-count" class="text-sm text-gray-500 mt-4"></p>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // DOM Elements
+      const taskInput = document.getElementById('task-input');
+      const addButton = document.getElementById('add-button');
+      const todoList = document.getElementById('todo-list');
+      const emptyListMessage = document.getElementById('empty-list');
+      const todoCount = document.getElementById('todo-count');
+      
+      // State
+      let todos = JSON.parse(localStorage.getItem('todos')) || [];
+      let editingId = null;
+      
+      // Initialize
+      renderTodos();
+      updateTodoCount();
+      
+      // Event Listeners
+      addButton.addEventListener('click', addTodo);
+      taskInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTodo();
+      });
+      
+      // Functions
+      function addTodo() {
+        const todoText = taskInput.value.trim();
+        
+        if (todoText === '') return;
+        
+        const newTodo = {
+          id: Date.now(),
+          text: todoText,
+          completed: false,
+          createdAt: new Date()
+        };
+        
+        todos.push(newTodo);
+        saveTodos();
+        
+        taskInput.value = '';
+        renderTodos();
+        updateTodoCount();
+      }
+      
+      function deleteTodo(id) {
+        todos = todos.filter(todo => todo.id !== id);
+        saveTodos();
+        renderTodos();
+        updateTodoCount();
+      }
+      
+      function startEditTodo(id) {
+        editingId = id;
+        renderTodos();
+      }
+      
+      function saveEditTodo(id, newText) {
+        if (newText.trim() === '') return;
+        
+        todos = todos.map(todo => {
+          if (todo.id === id) {
+            return { ...todo, text: newText.trim() };
+          }
+          return todo;
+        });
+        
+        editingId = null;
+        saveTodos();
+        renderTodos();
+      }
+      
+      function renderTodos() {
+        // Clear the list
+        todoList.innerHTML = '';
+        
+        // Show or hide empty list message
+        if (todos.length === 0) {
+          emptyListMessage.style.display = 'block';
+        } else {
+          emptyListMessage.style.display = 'none';
+        }
+        
+        // Render todos
+        todos.forEach(todo => {
+          const todoItem = document.createElement('li');
+          todoItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500 hover:bg-gray-100 transition';
+          
+          // Check if this todo is being edited
+          if (editingId === todo.id) {
+            // Render edit mode
+            todoItem.innerHTML = `
+              <div class="flex-1 pr-2">
+                <input type="text" class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 edit-input" 
+                  value="${todo.text}">
+              </div>
+              <div class="flex space-x-2">
+                <button class="save-btn text-white bg-green-500 hover:bg-green-600 px-2 py-1 rounded text-sm">
+                  Save
+                </button>
+                <button class="cancel-btn text-white bg-gray-500 hover:bg-gray-600 px-2 py-1 rounded text-sm">
+                  Cancel
+                </button>
+              </div>
+            `;
+            
+            const editInput = todoItem.querySelector('.edit-input');
+            const saveBtn = todoItem.querySelector('.save-btn');
+            const cancelBtn = todoItem.querySelector('.cancel-btn');
+            
+            editInput.focus();
+            
+            saveBtn.addEventListener('click', () => {
+              saveEditTodo(todo.id, editInput.value);
+            });
+            
+            cancelBtn.addEventListener('click', () => {
+              editingId = null;
+              renderTodos();
+            });
+            
+            editInput.addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') {
+                saveEditTodo(todo.id, editInput.value);
+              }
+            });
+          } else {
+            // Render normal mode
+            todoItem.innerHTML = `
+              <div class="flex-1">
+                <span class="todo-text">${todo.text}</span>
+              </div>
+              <div class="flex space-x-2">
+                <button class="edit-btn text-blue-600 hover:text-blue-800 focus:outline-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button class="delete-btn text-red-600 hover:text-red-800 focus:outline-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            `;
+            
+            const editBtn = todoItem.querySelector('.edit-btn');
+            const deleteBtn = todoItem.querySelector('.delete-btn');
+            
+            editBtn.addEventListener('click', () => {
+              startEditTodo(todo.id);
+            });
+            
+            deleteBtn.addEventListener('click', () => {
+              deleteTodo(todo.id);
+            });
+          }
+          
+          todoList.appendChild(todoItem);
+        });
+      }
+      
+      function updateTodoCount() {
+        const activeTodos = todos.length;
+        todoCount.textContent = `${activeTodos} item${activeTodos !== 1 ? 's' : ''} in your list`;
+      }
+      
+      function saveTodos() {
+        localStorage.setItem('todos', JSON.stringify(todos));
+      }
+    });
+  </script>
+</body>
+</html>
